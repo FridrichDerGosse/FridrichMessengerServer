@@ -130,3 +130,5 @@ dmypy.json
 
 # custon
 tests/
+*.db
+zip_and_send.bash
