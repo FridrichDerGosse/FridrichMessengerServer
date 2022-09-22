@@ -1,2 +1,4 @@
-sqlalchemy
+sqlalchemy~=1.4.41
 customtkinter
+
+websockets~=10.3

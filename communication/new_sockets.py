@@ -1,5 +1,8 @@
 from threading import Thread
 import typing as tp
+import websockets
+import asyncio
+import base64
 import socket
 import json
 import time
@@ -8,6 +11,26 @@ import time
 # com defaults
 START_B = bytes(0)
 END_B = bytes(1)
+
+
+class WebSocketServer:
+    running: bool = True
+
+    def __init__(self, port: int, client_handler_func: tp.Callable, autostart_client_acceptor: bool = True):
+        self._port = port
+        self._client_handler_func = client_handler_func
+
+        if autostart_client_acceptor:
+            asyncio.run(self.accept_clients())
+
+    @property
+    def port(self) -> int:
+        return self._port
+
+    async def accept_clients(self):
+        while self.running:
+            async with websockets.serve(self._client_handler_func, "localhost", self.port):
+                await asyncio.Future()
 
 
 class NSocketServer(socket.socket):
@@ -132,7 +155,7 @@ def n_send(data: dict, sock: socket.socket):
     # send message
     b_mes = json.dumps(msg).encode("ASCII")
     sock.sendall(START_B)
-    sock.sendall(b_mes)
+    sock.sendall(base64.b64encode(b_mes))
     sock.sendall(END_B)
 
 
@@ -159,8 +182,23 @@ def n_recv(sock: socket.socket) -> dict | None:
         else:
             msg += new
 
-    data = json.loads(msg.decode("ASCII"))
+    data = json.loads(base64.b64decode(msg).decode("ASCII"))
     return data["content"]
+
+
+async def ws_send(data: dict, ws):
+    msg = {
+        "time": time.time(),
+        "content": data,
+    }
+
+    try:
+        mes = json.dumps(msg)
+    except Exception:
+        print(f"json encoding error for message: {msg}")
+        raise
+
+    await ws.send(mes)
 
 
 if __name__ == "__main__":
